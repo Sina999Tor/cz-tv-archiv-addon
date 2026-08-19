@@ -30,15 +30,16 @@ export default async function handler(req, res) {
     const type = parts[2];
     const extra = parseExtra(parts[4]);
     const genre = extra.genre || 'Populární';
+    const country = extra.country || 'CZ + SK';
     const search = extra.search || '';
     const page = extra.skip ? Math.floor(Number(extra.skip) / 20) + 1 : 1;
 
     let metas = [];
     try {
       if (type === 'movie') {
-        metas = await discoverMovies({ genre, search, page });
+        metas = await discoverMovies({ genre, search, page, country });
       } else if (type === 'series') {
-        metas = await discoverSeries({ genre, search, page });
+        metas = await discoverSeries({ genre, search, page, country });
       }
     } catch (err) {
       console.error('Catalog Error:', err);
