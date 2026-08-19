@@ -1,5 +1,5 @@
 import { unconfiguredManifest, configuredManifest } from '../lib/manifest.js';
-import { discoverMovies, discoverSeries, getMovieMetaByImdb, getSeriesMetaByImdb } from '../lib/tmdb.js';
+import { discoverMovies, discoverSeries, getMovieMeta, getSeriesMeta } from '../lib/tmdb.js';
 import { getStreams } from '../lib/stream.js';
 import { resolveApiKey } from '../lib/config.js';
 import { configurePageHtml } from '../lib/configure.js';
@@ -93,8 +93,8 @@ export default async function handler(req, res) {
 
     let meta = null;
     try {
-      if (type === 'movie') meta = await getMovieMetaByImdb(apiKey, id);
-      if (type === 'series') meta = await getSeriesMetaByImdb(apiKey, id);
+      if (type === 'movie') meta = await getMovieMeta(apiKey, id);
+      if (type === 'series') meta = await getSeriesMeta(apiKey, id);
     } catch (err) {
       console.error('Meta Error:', err);
     }
