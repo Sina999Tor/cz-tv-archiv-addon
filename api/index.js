@@ -35,15 +35,16 @@ export default async function handler(req, res) {
     const extra = parseExtra(parts[4]);
     const genre = extra.genre || 'Populární';
     const country = extra.country || 'CZ + SK';
+    const year = extra.year || '';
     const search = extra.search || '';
     const skip = extra.skip ? Number(extra.skip) : 0;
 
     let metas = [];
     try {
       if (type === 'movie') {
-        metas = await discoverMovies({ genre, search, skip, country });
+        metas = await discoverMovies({ genre, search, skip, country, year });
       } else if (type === 'series') {
-        metas = await discoverSeries({ genre, search, skip, country });
+        metas = await discoverSeries({ genre, search, skip, country, year });
       }
     } catch (err) {
       console.error('Catalog Error:', err);
