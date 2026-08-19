@@ -3,11 +3,15 @@ import { discoverMovies, discoverSeries, getMovieMetaByImdb, getSeriesMetaByImdb
 import { getStreams } from '../lib/stream.js';
 
 function parseExtra(rawSegment) {
-  const extraParams = rawSegment ? decodeURIComponent(rawSegment).replace('.json', '') : '';
   const out = {};
-  extraParams.split('&').forEach(pair => {
-    const [k, v] = pair.split('=');
-    if (k && v !== undefined) out[k] = decodeURIComponent(v.replace(/\+/g, ' '));
+  if (!rawSegment) return out;
+  const clean = rawSegment.replace('.json', '');
+  clean.split('&').forEach(pair => {
+    const idx = pair.indexOf('=');
+    if (idx === -1) return;
+    const k = decodeURIComponent(pair.slice(0, idx));
+    const v = decodeURIComponent(pair.slice(idx + 1));
+    if (k) out[k] = v;
   });
   return out;
 }
