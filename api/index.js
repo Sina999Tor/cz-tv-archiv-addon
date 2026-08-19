@@ -32,14 +32,14 @@ export default async function handler(req, res) {
     const genre = extra.genre || 'Populární';
     const country = extra.country || 'CZ + SK';
     const search = extra.search || '';
-    const page = extra.skip ? Math.floor(Number(extra.skip) / 20) + 1 : 1;
+    const skip = extra.skip ? Number(extra.skip) : 0;
 
     let metas = [];
     try {
       if (type === 'movie') {
-        metas = await discoverMovies({ genre, search, page, country });
+        metas = await discoverMovies({ genre, search, skip, country });
       } else if (type === 'series') {
-        metas = await discoverSeries({ genre, search, page, country });
+        metas = await discoverSeries({ genre, search, skip, country });
       }
     } catch (err) {
       console.error('Catalog Error:', err);
