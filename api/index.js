@@ -1,6 +1,5 @@
 import { unconfiguredManifest, configuredManifest } from '../lib/manifest.js';
 import { discoverMovies, discoverSeries, getMovieMeta, getSeriesMeta } from '../lib/tmdb.js';
-import { getStreams } from '../lib/stream.js';
 import { resolveApiKey } from '../lib/config.js';
 import { configurePageHtml } from '../lib/configure.js';
 
@@ -21,7 +20,7 @@ function parseExtra(rawSegment) {
 // Cesty, které NEJSOU konfigurační base64 segment, ale přímo route.
 // Používá se k rozpoznání, jestli první segment URL je "/CONFIG/manifest.json"
 // (s konfigurací) nebo "/manifest.json" (bez konfigurace).
-const KNOWN_FIRST_SEGMENTS = new Set(['manifest.json', 'catalog', 'meta', 'stream', 'configure']);
+const KNOWN_FIRST_SEGMENTS = new Set(['manifest.json', 'catalog', 'meta', 'configure']);
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -65,7 +64,8 @@ export default async function handler(req, res) {
     const parts = rest; // [catalog, type, id(.json), extra.json?]
     const type = parts[1];
     const extra = parseExtra(parts[3]);
-    const genre = extra.genre || 'Populární';
+    const sort = extra.sort || 'Populární';
+    const genre = extra.genre || '';
     const country = extra.country || 'CZ + SK';
     const year = extra.year || '';
     const search = extra.search || '';
@@ -74,9 +74,9 @@ export default async function handler(req, res) {
     let metas = [];
     try {
       if (type === 'movie') {
-        metas = await discoverMovies(apiKey, { genre, search, skip, country, year });
+        metas = await discoverMovies(apiKey, { sort, genre, search, skip, country, year });
       } else if (type === 'series') {
-        metas = await discoverSeries(apiKey, { genre, search, skip, country, year });
+        metas = await discoverSeries(apiKey, { sort, genre, search, skip, country, year });
       }
     } catch (err) {
       console.error('Catalog Error:', err);
@@ -100,17 +100,6 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({ meta: meta || {} });
-  }
-
-  // 6. Stream handler: /stream/{type}/{id}.json  (id může být "tt123:1:2")
-  // Torrentio nepotřebuje TMDB klíč, funguje i bez konfigurace.
-  if (routePath.startsWith('/stream/')) {
-    const parts = rest;
-    const type = parts[1];
-    const id = decodeURIComponent(parts[2] || '').replace('.json', '');
-
-    const streams = await getStreams(type, id);
-    return res.status(200).json({ streams });
   }
 
   return res.status(404).json({ error: 'Endpoint not found' });
