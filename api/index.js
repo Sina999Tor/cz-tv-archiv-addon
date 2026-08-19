@@ -1,10 +1,18 @@
 import { manifest } from '../lib/manifest.js';
-import { getCtArchive, getCtMeta, getCtStream } from '../lib/ct.js';
-import { getPrimaArchive, getPrimaMeta, getPrimaStream } from '../lib/prima.js';
-import { getNovaArchive, getNovaMeta, getNovaStream } from '../lib/nova.js';
+import { discoverMovies, discoverSeries, getMovieMetaByImdb, getSeriesMetaByImdb } from '../lib/tmdb.js';
+import { getStreams } from '../lib/stream.js';
+
+function parseExtra(rawSegment) {
+  const extraParams = rawSegment ? decodeURIComponent(rawSegment).replace('.json', '') : '';
+  const out = {};
+  extraParams.split('&').forEach(pair => {
+    const [k, v] = pair.split('=');
+    if (k && v !== undefined) out[k] = decodeURIComponent(v.replace(/\+/g, ' '));
+  });
+  return out;
+}
 
 export default async function handler(req, res) {
-  // CORS hlavičky pro Nuvio / Stremio
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', '*');
   res.setHeader('Content-Type', 'application/json');
@@ -16,66 +24,53 @@ export default async function handler(req, res) {
     return res.status(200).json(manifest);
   }
 
-  // 2. Catalog handler (/catalog/series/cz_tv_archive/genre=...json)
+  // 2. Catalog handler: /catalog/{type}/{id}/{extra}.json nebo /catalog/{type}/{id}.json
   if (url.startsWith('/catalog/')) {
-    const parts = url.split('/');
-    const extraParams = parts[4] ? decodeURIComponent(parts[4]).replace('.json', '') : '';
-
-    let genre = 'Vše';
-    let search = '';
-
-    if (extraParams.includes('genre=')) {
-      genre = extraParams.split('genre=')[1].split('&')[0];
-    }
-    if (extraParams.includes('search=')) {
-      search = extraParams.split('search=')[1].split('&')[0];
-    }
+    const parts = url.split('/'); // ['', 'catalog', type, id(.json), extra.json?]
+    const type = parts[2];
+    const extra = parseExtra(parts[4]);
+    const genre = extra.genre || 'Populární';
+    const search = extra.search || '';
+    const page = extra.skip ? Math.floor(Number(extra.skip) / 20) + 1 : 1;
 
     let metas = [];
-
-    if (genre === 'Česká Televize') {
-      metas = await getCtArchive(search);
-    } else if (genre === 'iPrima') {
-      metas = await getPrimaArchive(search);
-    } else if (genre === 'Nova') {
-      metas = await getNovaArchive(search);
-    } else {
-      const [ct, prima, nova] = await Promise.all([
-        getCtArchive(search),
-        getPrimaArchive(search),
-        getNovaArchive(search)
-      ]);
-      metas = [...ct, ...prima, ...nova];
+    try {
+      if (type === 'movie') {
+        metas = await discoverMovies({ genre, search, page });
+      } else if (type === 'series') {
+        metas = await discoverSeries({ genre, search, page });
+      }
+    } catch (err) {
+      console.error('Catalog Error:', err);
     }
 
     return res.status(200).json({ metas });
   }
 
-  // 3. Meta handler (/meta/series/ct:123.json)
+  // 3. Meta handler: /meta/{type}/{id}.json
   if (url.startsWith('/meta/')) {
-    const idWithJson = url.split('/')[3] || '';
-    const fullId = decodeURIComponent(idWithJson).replace('.json', '');
-    const [provider, realId] = fullId.split(':');
+    const parts = url.split('/');
+    const type = parts[2];
+    const id = decodeURIComponent(parts[3] || '').replace('.json', '');
 
     let meta = null;
-    if (provider === 'ct') meta = await getCtMeta(realId);
-    if (provider === 'prima') meta = await getPrimaMeta(realId);
-    if (provider === 'nova') meta = await getNovaMeta(realId);
+    try {
+      if (type === 'movie') meta = await getMovieMetaByImdb(id);
+      if (type === 'series') meta = await getSeriesMetaByImdb(id);
+    } catch (err) {
+      console.error('Meta Error:', err);
+    }
 
-    return res.status(200).json({ meta });
+    return res.status(200).json({ meta: meta || {} });
   }
 
-  // 4. Stream handler (/stream/series/ct:456.json)
+  // 4. Stream handler: /stream/{type}/{id}.json  (id může být "tt123:1:2")
   if (url.startsWith('/stream/')) {
-    const idWithJson = url.split('/')[3] || '';
-    const fullId = decodeURIComponent(idWithJson).replace('.json', '');
-    const [provider, realId] = fullId.split(':');
+    const parts = url.split('/');
+    const type = parts[2];
+    const id = decodeURIComponent(parts[3] || '').replace('.json', '');
 
-    let streams = [];
-    if (provider === 'ct') streams = await getCtStream(realId);
-    if (provider === 'prima') streams = await getPrimaStream(realId);
-    if (provider === 'nova') streams = await getNovaStream(realId);
-
+    const streams = await getStreams(type, id);
     return res.status(200).json({ streams });
   }
 
