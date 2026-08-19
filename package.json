@@ -1,0 +1,9 @@
+{
+  "name": "cz-tv-archive-addon",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "api/index.js",
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}
